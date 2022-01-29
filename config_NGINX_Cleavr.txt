@@ -1,0 +1,60 @@
+include cleaver-conf/XXXX.k-review.com/header/*.conf;
+
+server {
+    
+server_name XXXX.k-review.com XXXX.k-review.com;
+
+root /home/cleaver/XXXX.k-review.com/current/;
+charset utf-8;
+include cleaver-conf/XXXX.k-review.com/*.conf;
+
+# Uncomment the following line only if you don't want to enable NGINX monitoring for this site
+# access_log off;
+# Uncomment the following line if you don't have a favicon and don't want to log 404 errors
+# location = /favicon.ico { access_log off; log_not_found off; }
+
+# Comment the following line if you do have a robots.txt file
+location = /robots.txt  { access_log off; log_not_found off; }
+
+error_log /var/log/nginx/error.log error;
+
+location ^~ /.well-known/acme-challenge/ {
+  allow all;
+}
+
+
+    index index.html index.htm index.php;
+
+    error_page 404 /index.php;
+
+    location / {
+        include cleaver-conf/XXXX.k-review.com/*.conf.pre;
+        try_files $uri $uri/ /index.php$is_args$args;
+        include cleaver-conf/XXXX.k-review.com/*.conf.post; 
+    }
+
+    location ~* /(?:uploads|files)/.*\.php$ {
+        deny all;
+    }
+
+
+    # Media: images, icons, video, audio, HTC
+    location ~* ^/(assets|media|content)/.+.(jpe?g|gif|png|webp|ico|cur|gz|svg|svgz|mp4|ogg|ogv|webm|htc)$ {
+      expires off;
+      access_log off;
+      add_header Cache-Control "no-cache, no-store, max-age=0";
+    }
+
+    location ~ \.php$ {
+        include cleaver-conf/XXXX.k-review.com/*.conf.pre;
+        # fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php7.4-fpm-cleaver.sock;
+        include cleaver-conf/XXXX.k-review.com/*.conf.post;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+
