@@ -1,27 +1,93 @@
-(common) {
-  encode gzip
-  php_fastcgi unix//run/php-fpm/php-fpm.sock
-  tls internal
-  file_server
-  header * {
-    # You may want some other header options...
-    X-Frame-Options "DENY"
-    X-XSS-Protection "1; mode=block"
-    X-Content-Type-Options "nosniff"
-    X-Frame-Options "SAMEORIGIN"
-  }
+your-domain.com {
+
+    # Enable https
+    tls info@example.com {
+        protocols tls1.2 tls1.3
+    }
+
+    # root web folder
+    root /home/www/your_root_web_folder
+
+    # Enable compress assets
+    gzip
+
+    # Store request or access log
+    log /home/www/logs/caddy-access.log {
+        rotate_size 100 # Rotate after 100 MB
+        rotate_age 30   # Keep log files for 30 days
+        rotate_keep 52  # Keep at most 52 log files
+    }
+
+    # Store error log
+    errors /home/www/logs/caddy-error.log {
+        rotate_size 100  # Rotate after 100 MB
+        rotate_age  30  # Keep rotated files for 30 days
+        rotate_keep 20  # Keep at most 20 log files
+    }
+
+    # PHP-FPM with Unix socket
+    fastcgi / /run/php/php8.0-fpm.sock php
+
+    rewrite /kirby/panel {
+        to {path} {path}/ /kirby/panel/index.php?{query}
+    }
+
+    rewrite / {
+        to {path} {path}/ /index.php?{query}
+    }
+
+    internal /forbidden
+    
+    # Kirby: https://github.com/caddyserver/examples/blob/master/kirby/Caddyfile_root
+
+    # block content
+    rewrite /content {
+        r /(.*).(txt|md|mdown)
+        to /error
+    }
+
+    # block all files in the site folder from being accessed directly
+    rewrite /site {
+        to /error
+    }
+
+    # block all files in the kirby folder
+        rewrite /kirby {
+          to /error
+    }
+
+    # site links
+    rewrite {
+          if {path} not_match /panel/.*
+          to {uri} /index.php?{path}&{query}
+    }
+    
+    # panel links
+        rewrite /kirby/panel {
+          if {path} not_match /panel/assets/.*
+          to {uri} /kirby/panel/index.php?{path}&{query}
+    }
+
+    # Prevent malicious PHP uploads from running
+    rewrite {
+        r /uploads\/(.*)\.php
+        to /
+    }
+
+    # Add some security headers to all pages
+    header / {
+        # Enable HTTP Strict Transport Security (HSTS) to force clients to always
+        # connect via HTTPS (do not use if only testing)
+        Strict-Transport-Security "max-age=31536000;"
+        # Enable cross-site filter (XSS) and tell browser to block detected attacks
+        X-XSS-Protection "1; mode=block"
+        # Prevent some browsers from MIME-sniffing a response away from the declared Content-Type
+        X-Content-Type-Options "nosniff"
+        # Disallow the site to be rendered within a frame (clickjacking protection)
+        X-Frame-Options "DENY"
+    }
 
 }
 
-(kirby) {
-  @blocked {
-    path *.txt *.md *.mdown
-  }
-  redir @blocked /
-}
 
-:2015 {
-    import common
-    import kirby
-    root * /home/your_path/your_app/
-}
+
